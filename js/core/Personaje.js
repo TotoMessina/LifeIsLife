@@ -22,6 +22,7 @@ export class Personaje {
         this.carrera.educacion.universidadCompletada = false;
         this.finanzas = new Finanzas();
         this.relaciones = [];
+        this._convertirRelaciones();
         this.embarazo = {
             estado: ESTADOS_EMBARAZO.NO_EMBARAZADA,
             meses: 0,
@@ -34,6 +35,19 @@ export class Personaje {
         this.tieneRegistro = false;
         // Generar familia inicial
         this.familia = this._generarFamiliaInicial();
+        this.etapaEducativa = 'infancia'; // infancia, primaria, secundaria, universidad, tecnica, adulto
+        this.rendimientoEscolar = [];
+    }
+
+    _convertirRelaciones() {
+        if (Array.isArray(this.relaciones)) {
+            this.relaciones = this.relaciones.map(rel => {
+                if (rel instanceof Relacion) {
+                    return rel;
+                }
+                return new Relacion(rel.persona, rel.tipo);
+            });
+        }
     }
 
     _generarFamiliaInicial() {
@@ -90,15 +104,8 @@ export class Personaje {
             }
         }
         padres.forEach(padre => {
-            this.relaciones.push({
-                persona: padre,
-                tipo: padre.genero === 'masculino' ? 'padre' : 'madre',
-                estado: 'activa',
-                hijos: [],
-                fechaInicio: null,
-                fechaFin: null,
-                nivelRelacion: 50
-            });
+            const relacion = new Relacion(padre, padre.genero === 'masculino' ? 'padre' : 'madre');
+            this.relaciones.push(relacion);
             familia.push(padre);
         });
         // Hermanos
@@ -114,15 +121,8 @@ export class Personaje {
                     genero: generoHermano,
                     edad: edadHermano
                 };
-                this.relaciones.push({
-                    persona: hermano,
-                    tipo: esGemelo ? 'hermano gemelo' : 'hermano',
-                    estado: 'activa',
-                    hijos: [],
-                    fechaInicio: null,
-                    fechaFin: null,
-                    nivelRelacion: 50
-                });
+                const relacion = new Relacion(hermano, esGemelo ? 'hermano gemelo' : 'hermano');
+                this.relaciones.push(relacion);
                 familia.push(hermano);
             }
         }
@@ -145,7 +145,36 @@ export class Personaje {
 
     envejecer() {
         this.edad++;
+
+        // Envejecer a las personas de las relaciones activas
+        this.relaciones.forEach(rel => {
+            if (rel.estado === 'activa' && rel.persona && typeof rel.persona.edad === 'number') {
+                rel.persona.edad++;
+            }
+        });
         
+        // Actualizar etapa educativa
+        this._actualizarEtapaEducativa();
+
+        // Calcular rendimiento escolar si está en etapa educativa
+        if (['primaria', 'secundaria', 'universidad', 'tecnica'].includes(this.etapaEducativa)) {
+            // Base: inteligencia (60%), felicidad (20%), sociabilidad (20%)
+            const inteligencia = this.atributos?.inteligencia ?? 50;
+            const felicidad = this.atributos?.felicidad ?? 50;
+            const sociabilidad = this.atributos?.sociabilidad ?? 50;
+            let rendimiento = Math.round(
+                inteligencia * 0.6 + felicidad * 0.2 + sociabilidad * 0.2
+            );
+            // Variación aleatoria +/- 10 puntos
+            rendimiento += Math.floor(Math.random() * 21) - 10;
+            rendimiento = Math.max(1, Math.min(100, rendimiento));
+            this.rendimientoEscolar.push({
+                edad: this.edad,
+                etapa: this.etapaEducativa,
+                rendimiento
+            });
+        }
+
         // Efectos del envejecimiento
         if (this.edad > 50) {
             this.modificarAtributo(ATRIBUTOS.SALUD, -1);
@@ -153,6 +182,15 @@ export class Personaje {
         if (this.edad > 70) {
             this.modificarAtributo(ATRIBUTOS.SALUD, -2);
         }
+
+        // Envejecer relaciones
+        this.relaciones.forEach(relacion => {
+            const eventoMuerte = relacion.envejecer();
+            if (eventoMuerte) {
+                this.agregarEvento(eventoMuerte);
+                this.modificarAtributo(ATRIBUTOS.FELICIDAD, eventoMuerte.impacto.felicidad);
+            }
+        });
 
         // Actualizar condiciones temporales
         this._actualizarCondiciones();
@@ -735,5 +773,26 @@ export class Personaje {
         });
 
         return Array.from(carrerasDisponibles);
+    }
+
+    _actualizarEtapaEducativa() {
+        if (this.edad >= 5 && this.edad <= 11) {
+            this.etapaEducativa = 'primaria';
+        } else if (this.edad >= 12 && this.edad <= 17) {
+            this.etapaEducativa = 'secundaria';
+        } else if (this.edad >= 18 && this.edad <= 22) {
+            // La elección entre universidad/técnica se hará más adelante según atributos y decisiones
+            if (this.carrera && this.carrera.educacion && this.carrera.educacion.tipo === 'universidad') {
+                this.etapaEducativa = 'universidad';
+            } else if (this.carrera && this.carrera.educacion && this.carrera.educacion.tipo === 'tecnica') {
+                this.etapaEducativa = 'tecnica';
+            } else {
+                this.etapaEducativa = 'adulto';
+            }
+        } else if (this.edad > 22) {
+            this.etapaEducativa = 'adulto';
+        } else {
+            this.etapaEducativa = 'infancia';
+        }
     }
 } 

@@ -5,6 +5,7 @@ import { PersonajeUI } from './ui/PersonajeUI.js';
 import StorageManager from './data/storage.js';
 import { helpers } from './utils/helpers.js';
 import { Juego } from './core/Juego.js';
+import { Relacion } from './core/Relacion.js';
 
 // Inicializar el juego cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
@@ -259,7 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const generoPareja = Math.random() < 0.5 ? 'Femenino' : 'Masculino';
                                 const personaPareja = { nombre: nombrePareja, edad: edadPareja, genero: generoPareja };
                                 if (!Array.isArray(personaje.relaciones)) personaje.relaciones = [];
-                                personaje.relaciones.push({ tipo: 'pareja', persona: personaPareja, nivelRelacion: 60, hijos: [] });
+                                const nuevaRelacion = new Relacion(personaPareja, 'pareja');
+                                personaje.relaciones.push(nuevaRelacion);
                                 personaje.agregarEvento({
                                     titulo: 'Nueva pareja',
                                     descripcion: `¡Has conocido a ${nombrePareja}!`,
@@ -305,122 +307,52 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const relaciones = personaje.relaciones || [];
-        if (relaciones.length === 0) {
-            contenidoRelaciones.innerHTML = '<p>No tienes relaciones activas ni pasadas.</p>';
-            return;
-        }
-        // Agrupar por tipo
-        const padres = relaciones.filter(r => r.tipo === 'padre' || r.tipo === 'madre');
-        const hermanos = relaciones.filter(r => r.tipo === 'hermano' || r.tipo === 'hermano gemelo');
-        const parejas = relaciones.filter(r => r.tipo === 'pareja' || r.tipo === 'casada');
-        const otros = relaciones.filter(r => !['padre', 'madre', 'hermano', 'hermano gemelo', 'pareja', 'casada'].includes(r.tipo));
-
-        function crearBotonDetalles(r, i, grupo) {
-            return `<button class='boton-menu' data-ver='${grupo}-${i}'>Ver detalles</button>`;
-        }
-        function crearBotonEliminar(r, i, grupo) {
-            return `<button class='boton-menu peligro' data-eliminar='${grupo}-${i}'>Eliminar</button>`;
-        }
         contenidoRelaciones.innerHTML = `
-            <h2>Padres</h2>
-            ${padres.length === 0 ? '<p>No tienes padres registrados.</p>' : `<ul>${padres.map((r, i) => `
-                <li>
-                    <strong>${r.persona.nombre}</strong> (${r.tipo}, ${r.persona.edad || '-'} años, ${r.persona.ocupacion || 'sin ocupación'})
-                    ${crearBotonDetalles(r, i, 'padre')}
-                    ${crearBotonEliminar(r, i, 'padre')}
-                </li>
-            `).join('')}</ul>`}
-            <h2>Hermanos</h2>
-            ${hermanos.length === 0 ? '<p>No tienes hermanos.</p>' : `<ul>${hermanos.map((r, i) => `
-                <li>
-                    <strong>${r.persona.nombre}</strong> (${r.tipo}, ${r.persona.edad || '-'} años)
-                    ${crearBotonDetalles(r, i, 'hermano')}
-                    ${crearBotonEliminar(r, i, 'hermano')}
-                </li>
-            `).join('')}</ul>`}
-            <h2>Parejas</h2>
-            ${parejas.length === 0 ? '<p>No tienes pareja.</p>' : `<ul>${parejas.map((r, i) => `
-                <li>
-                    <strong>${r.persona.nombre}</strong> (${r.tipo})
-                    ${crearBotonDetalles(r, i, 'pareja')}
-                    ${crearBotonEliminar(r, i, 'pareja')}
-                </li>
-            `).join('')}</ul>`}
-            <h2>Otras relaciones</h2>
-            ${otros.length === 0 ? '<p>No tienes otras relaciones.</p>' : `<ul>${otros.map((r, i) => `
-                <li>
-                    <strong>${r.persona.nombre}</strong> (${r.tipo})
-                    ${crearBotonDetalles(r, i, 'otro')}
-                    ${crearBotonEliminar(r, i, 'otro')}
-                </li>
-            `).join('')}</ul>`}
-            <div id='relacion-modal' class='modal-flotante' style='display:none;'></div>
+            <h2>Relaciones</h2>
+            <ul style='list-style:none;padding:0;'>
+                ${relaciones.length === 0 ? '<li>No tienes relaciones familiares.</li>' : relaciones.map((rel, idx) => `
+                    <li style='margin-bottom:1.2em; padding:1em; border-radius:8px; background:var(--color-bg-panel); box-shadow:0 2px 8px #0002;'>
+                        <strong>${rel.persona.nombre}</strong> (${rel.tipo})<br>
+                        <span>Edad: <b>${rel.persona.edad}</b> años</span><br>
+                        <span>Personalidad: <b>${rel.personalidad || 'neutral'}</b></span><br>
+                        <span>Nivel de relación: <b>${rel.nivelRelacion ?? 50}/100</b></span><br>
+                        <span>Estado: <b>${rel.estado === 'fallecida' ? 'Fallecido' : 'Activo'}</b></span><br>
+                        ${rel.estado === 'activa' ? `
+                            <button class='boton-menu' data-accion='charlar' data-idx='${idx}'>Charlar</button>
+                            <button class='boton-menu' data-accion='salir' data-idx='${idx}'>Salir juntos</button>
+                            <button class='boton-menu peligro' data-accion='discutir' data-idx='${idx}'>Discutir</button>
+                        ` : `
+                            <span style='color: #666;'>Falleció a la edad de ${rel.persona.edad} años</span>
+                        `}
+                        <div id='rel-feedback-${idx}' style='margin-top:0.5em;min-height:1.2em;'></div>
+                    </li>
+                `).join('')}
+            </ul>
         `;
-        // Listeners para detalles y eliminar
-        contenidoRelaciones.querySelectorAll('[data-ver]').forEach(btn => {
-            btn.onclick = e => {
-                const [grupo, idx] = btn.getAttribute('data-ver').split('-');
-                let rel;
-                if (grupo === 'padre') rel = padres[idx];
-                if (grupo === 'hermano') rel = hermanos[idx];
-                if (grupo === 'pareja') rel = parejas[idx];
-                if (grupo === 'otro') rel = otros[idx];
-                if (!rel) return;
-                const modal = document.getElementById('relacion-modal');
-                modal.innerHTML = `
-                    <div class='modal-contenido'>
-                        <h3>${rel.persona.nombre}</h3>
-                        <p><strong>Tipo:</strong> ${rel.tipo}</p>
-                        <p><strong>Edad:</strong> ${rel.persona.edad || '-'}</p>
-                        <p><strong>Ocupación:</strong> ${rel.persona.ocupacion || '-'}</p>
-                        <p><strong>Nivel de relación:</strong> <span id='nivel-relacion'>${rel.nivelRelacion ?? 50}/100</span></p>
-                        <div style='margin:10px 0;'>
-                            <button class='boton-menu' id='btn-charlar'>Charlar</button>
-                            <button class='boton-menu' id='btn-discutir'>Discutir</button>
-                            <button class='boton-menu' id='btn-salir-juntos'>Salir juntos</button>
-                        </div>
-                        <button class='boton-menu' id='cerrar-detalle-relacion'>Cerrar</button>
-                    </div>
-                `;
-                modal.style.display = 'block';
-                document.getElementById('cerrar-detalle-relacion').onclick = () => {
-                    modal.style.display = 'none';
-                };
-                // Actividades familiares
-                document.getElementById('btn-charlar').onclick = () => {
-                    window.juego.personaje.modificarRelacion(rel.persona, 10);
-                    window.juego.personaje.modificarAtributo('felicidad', 2);
-                    document.getElementById('nivel-relacion').textContent = `${rel.nivelRelacion}/100`;
-                };
-                document.getElementById('btn-discutir').onclick = () => {
-                    window.juego.personaje.modificarRelacion(rel.persona, -15);
-                    window.juego.personaje.modificarAtributo('felicidad', -3);
-                    document.getElementById('nivel-relacion').textContent = `${rel.nivelRelacion}/100`;
-                };
-                document.getElementById('btn-salir-juntos').onclick = () => {
-                    window.juego.personaje.modificarRelacion(rel.persona, 20);
-                    window.juego.personaje.modificarAtributo('felicidad', 5);
-                    document.getElementById('nivel-relacion').textContent = `${rel.nivelRelacion}/100`;
-                };
-            };
-        });
-        contenidoRelaciones.querySelectorAll('[data-eliminar]').forEach(btn => {
-            btn.onclick = e => {
-                const [grupo, idx] = btn.getAttribute('data-eliminar').split('-');
-                let rel;
-                if (grupo === 'padre') rel = padres[idx];
-                if (grupo === 'hermano') rel = hermanos[idx];
-                if (grupo === 'pareja') rel = parejas[idx];
-                if (grupo === 'otro') rel = otros[idx];
-                if (!rel) return;
-                if (confirm(`¿Seguro que quieres eliminar la relación con ${rel.persona.nombre}?`)) {
-                    const index = personaje.relaciones.indexOf(rel);
-                    if (index !== -1) {
-                        personaje.relaciones.splice(index, 1);
-                        mostrarRelaciones(juego);
+        relaciones.forEach((rel, idx) => {
+            if (rel.estado === 'activa') {
+                ['charlar', 'salir', 'discutir'].forEach(accion => {
+                    const btn = contenidoRelaciones.querySelector(`[data-accion='${accion}'][data-idx='${idx}']`);
+                    if (btn) {
+                        btn.onclick = () => {
+                            const resultado = rel.interactuar(accion);
+                            const feedbackDiv = document.getElementById(`rel-feedback-${idx}`);
+                            feedbackDiv.innerHTML = `<span>${resultado.feedback} (Nivel: <b>${resultado.nivel}/100</b>)</span>`;
+                            // Registrar en historial
+                            personaje.agregarEvento({
+                                titulo: `Interacción con ${rel.persona.nombre}`,
+                                descripcion: `${accion.charAt(0).toUpperCase() + accion.slice(1)} (${rel.personalidad}): ${resultado.feedback}`,
+                                tipo: 'relacion',
+                                edad: personaje.edad
+                            });
+                            window.juego.ui.actualizarPersonaje(personaje);
+                            if (typeof window.actualizarPanelEventosPrincipal === 'function') {
+                                window.actualizarPanelEventosPrincipal(personaje);
+                            }
+                        };
                     }
-                }
-            };
+                });
+            }
         });
     }
 
