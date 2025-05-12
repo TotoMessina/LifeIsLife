@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Vida</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+<canvas id="particles-bg"></canvas>
+<div class="header">
+  <div class="avatar"></div>
+  <div class="info-principal">
+    <span class="nombre" id="nombre-personaje">Nombre</span>
+    <span class="edad" id="edad-personaje">0 años</span>
+    <span class="genero" id="genero-personaje">Género</span>
+    <span class="estado" id="estado-personaje">Vivo</span>
+  </div>
+  <div class="saldo" id="saldo-personaje">$0</div>
+</div>
+
+<div class="panel-central" id="juego-container" style="display:none;">
+  <div class="resumen-vida" id="resumen-vida">
+    <!-- Aquí va la biografía, eventos importantes, familia, etc. -->
+  </div>
+  <button class="boton-edad" id="btn-edad">+ Edad</button>
+  <div class="atributos" id="atributos-personaje">
+    <!-- Barras de atributos -->
+  </div>
+</div>
+
+<div class="menu-inferior" id="menu-inferior" style="display:none;">
+  <button class="boton-menu" id="btn-estudios">Estudios/Trabajo</button>
+  <button class="boton-menu" id="btn-propiedades">Propiedades</button>
+  <button class="boton-menu" id="btn-relaciones">Relaciones</button>
+  <button class="boton-menu" id="btn-actividades">Actividades</button>
+</div>
+
+<!-- Paneles modales flotantes -->
+<div class="modal" id="modal-estudios">
+  <button class="cerrar-modal" data-close="modal-estudios">×</button>
+  <div class="modal-contenido" id="contenido-estudios"></div>
+</div>
+<div class="modal" id="modal-propiedades">
+  <button class="cerrar-modal" data-close="modal-propiedades">×</button>
+  <div class="modal-contenido" id="contenido-propiedades"></div>
+</div>
+<div class="modal" id="modal-relaciones">
+  <button class="cerrar-modal" data-close="modal-relaciones">×</button>
+  <div class="modal-contenido" id="contenido-relaciones"></div>
+</div>
+<div class="modal" id="modal-actividades">
+  <button class="cerrar-modal" data-close="modal-actividades">×</button>
+  <div class="modal-contenido" id="contenido-actividades"></div>
+</div>
+
+  <div id="form-container">
+    <form id="form-personaje">
+      <h2>Crear Nuevo Personaje</h2>
+      <div>
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" required>
+      </div>
+      <div>
+        <label for="genero">Género:</label>
+        <select id="genero" required>
+          <option value="masculino">Masculino</option>
+          <option value="femenino">Femenino</option>
+        </select>
+      </div>
+      <button type="submit">Comenzar</button>
+    </form>
+  </div>
+
+  <div id="juego-container" style="display: none;">
+    <div id="personaje-container"></div>
+    <div id="propiedades-container"></div>
+    <div id="finanzas-container"></div>
+    <div id="relaciones-container"></div>
+    <button id="btn-avanzar">Avanzar Año</button>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
