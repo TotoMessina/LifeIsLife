@@ -641,64 +641,142 @@ document.addEventListener('DOMContentLoaded', () => {
             contenidoEstudios.innerHTML = '<p>No hay personaje cargado.</p>';
             return;
         }
+
+        // Resto del contenido de educación y trabajo
         const educacion = personaje.carrera.educacion;
         const trabajo = personaje.carrera.trabajo;
-        let puedeTrabajar = personaje.edad >= 18;
-        let puedeEstudiar = true;
-        let mensajeRestriccion = '';
-        if (!puedeTrabajar) {
-            mensajeRestriccion = '<p class="mensaje-advertencia">Hasta los 18 años solo puedes estudiar.</p>';
-        }
-        // Opciones de carrera universitaria
-        let opcionesCarrera = '';
-        if (personaje.edad >= 18 && !educacion.carrera && educacion.nivel === null) {
-            opcionesCarrera = `
-                <label for='select-carrera'>Elige una carrera universitaria:</label>
-                <select id='select-carrera'>
-                    <option value=''>Selecciona...</option>
-                    <option value='MEDICINA'>Medicina</option>
-                    <option value='DERECHO'>Derecho</option>
-                    <option value='INGENIERIA'>Ingeniería</option>
-                    <option value='ARTE'>Arte</option>
-                    <option value='EMPRESARIAL'>Administración de Empresas</option>
-                </select>
-                <button class='boton-menu' id='btn-elegir-carrera'>Elegir carrera</button>
+
+        // Opciones de educación según edad
+        let opcionesEducacion = '';
+        if (personaje.edad >= 6 && personaje.edad < 12) {
+            // Escuela Primaria
+            opcionesEducacion = `
+                <h3>Escuela Primaria</h3>
+                <div class='opciones-educacion'>
+                    <label>Tipo de escuela:</label>
+                    <select id='tipo-escuela-primaria'>
+                        <option value='publica' ${educacion.tipo === 'publica' ? 'selected' : ''}>Pública</option>
+                        <option value='privada' ${educacion.tipo === 'privada' ? 'selected' : ''}>Privada</option>
+                    </select>
+                    <label>Inclinación:</label>
+                    <select id='inclinacion-primaria'>
+                        <option value='ciencia' ${educacion.inclinacion === 'ciencia' ? 'selected' : ''}>Ciencias</option>
+                        <option value='arte' ${educacion.inclinacion === 'arte' ? 'selected' : ''}>Arte</option>
+                        <option value='deportes' ${educacion.inclinacion === 'deportes' ? 'selected' : ''}>Deportes</option>
+                        <option value='tecnologia' ${educacion.inclinacion === 'tecnologia' ? 'selected' : ''}>Tecnología</option>
+                    </select>
+                    <button class='boton-menu' id='btn-estudiar-primaria'>Estudiar</button>
+                </div>
             `;
-        }
-        // Opciones de posgrado/cursos
-        let opcionesPosgrado = '';
-        if (educacion.carrera && personaje.edad >= 23) {
-            opcionesPosgrado = `
-                <label for='select-posgrado'>Posgrados/cursos:</label>
-                <select id='select-posgrado'>
-                    <option value=''>Selecciona...</option>
-                    <option value='POSGRADO'>Posgrado</option>
-                    <option value='CURSO'>Curso de especialización</option>
-                </select>
-                <button class='boton-menu' id='btn-hacer-posgrado'>Realizar</button>
+        } else if (personaje.edad >= 12 && personaje.edad < 18) {
+            // Escuela Secundaria
+            opcionesEducacion = `
+                <h3>Escuela Secundaria</h3>
+                <div class='opciones-educacion'>
+                    <label>Tipo de escuela:</label>
+                    <select id='tipo-escuela-secundaria'>
+                        <option value='publica' ${educacion.tipo === 'publica' ? 'selected' : ''}>Pública</option>
+                        <option value='privada' ${educacion.tipo === 'privada' ? 'selected' : ''}>Privada</option>
+                    </select>
+                    <label>Inclinación:</label>
+                    <select id='inclinacion-secundaria'>
+                        <option value='ciencia' ${educacion.inclinacion === 'ciencia' ? 'selected' : ''}>Ciencias</option>
+                        <option value='arte' ${educacion.inclinacion === 'arte' ? 'selected' : ''}>Arte</option>
+                        <option value='deportes' ${educacion.inclinacion === 'deportes' ? 'selected' : ''}>Deportes</option>
+                        <option value='tecnologia' ${educacion.inclinacion === 'tecnologia' ? 'selected' : ''}>Tecnología</option>
+                        <option value='humanidades' ${educacion.inclinacion === 'humanidades' ? 'selected' : ''}>Humanidades</option>
+                    </select>
+                    <button class='boton-menu' id='btn-estudiar-secundaria'>Estudiar</button>
+                </div>
             `;
-        }
-        // Trabajos desbloqueados
-        let trabajosDisponibles = '';
-        if (personaje.edad >= 18) {
-            trabajosDisponibles = `<h3>Trabajos disponibles según tu educación:</h3><ul>`;
-            if (educacion.carrera) {
-                trabajosDisponibles += `<li>Profesional en ${educacion.carrera}</li>`;
-            } else if (educacion.nivel === 'Escuela Secundaria') {
-                trabajosDisponibles += `<li>Empleos básicos (vendedor, administrativo, etc.)</li>`;
+        } else if (personaje.edad >= 18) {
+            // Universidad y cursos
+            let opcionesUniversidad = '';
+            if (personaje.puedeAccederUniversidad()) {
+                opcionesUniversidad = `
+                    <h3>Universidad</h3>
+                    <div class='opciones-educacion'>
+                        ${personaje.carrera.educacion.carrera ? `
+                            <p><strong>Carrera actual:</strong> ${personaje.carrera.educacion.carrera}</p>
+                            <p><strong>Años completados:</strong> ${personaje.carrera.educacion.añosUniversidad}/${personaje._obtenerDuracionCarrera(personaje.carrera.educacion.carrera)}</p>
+                            <p><strong>Estado:</strong> ${personaje.carrera.educacion.universidadCompletada ? 'Graduado' : 'En curso'}</p>
+                        ` : `
+                            <p><strong>¡Puedes acceder a la universidad!</strong></p>
+                            <p>Has completado los requisitos necesarios para comenzar una carrera universitaria.</p>
+                            <label>Carrera:</label>
+                            <select id='carrera-universidad'>
+                                <option value=''>Selecciona una carrera...</option>
+                                ${personaje.obtenerCarrerasDisponibles().map(carrera => `
+                                    <option value='${carrera}' ${educacion.carrera === carrera ? 'selected' : ''}>
+                                        ${carrera === 'MEDICINA' ? 'Medicina (6 años)' :
+                                          carrera === 'DERECHO' ? 'Derecho (5 años)' :
+                                          carrera === 'INGENIERIA' ? 'Ingeniería (5 años)' :
+                                          carrera === 'ARTE' ? 'Arte (4 años)' :
+                                          'Administración de Empresas (4 años)'}
+                                    </option>
+                                `).join('')}
+                            </select>
+                            <button class='boton-menu' id='btn-estudiar-universidad'>Comenzar carrera</button>
+                        `}
+                    </div>
+                `;
             } else {
-                trabajosDisponibles += `<li>Trabajos no calificados</li>`;
+                opcionesUniversidad = `
+                    <h3>Cursos de Capacitación</h3>
+                    <div class='opciones-educacion'>
+                        <p><strong>Rendimiento actual:</strong> ${personaje.carrera.educacion.rendimiento || 0}/100</p>
+                        <p><strong>Cursos realizados:</strong> ${personaje.carrera.educacion.cursos ? personaje.carrera.educacion.cursos.join(', ') : 'Ninguno'}</p>
+                        <label>Curso:</label>
+                        <select id='curso-capacitacion'>
+                            <option value=''>Selecciona un curso...</option>
+                            <option value='PROGRAMACION'>Programación (+15 rendimiento)</option>
+                            <option value='DISEÑO'>Diseño Gráfico (+15 rendimiento)</option>
+                            <option value='IDIOMAS'>Idiomas (+10 rendimiento)</option>
+                            <option value='OFICIOS'>Oficios (+8 rendimiento)</option>
+                        </select>
+                        <button class='boton-menu' id='btn-hacer-curso'>Realizar curso</button>
+                        ${personaje.carrera.educacion.rendimiento >= 70 ? '<p style="color:var(--color-exito)">¡Puedes acceder a la universidad!</p>' : ''}
+                    </div>
+                `;
             }
-            trabajosDisponibles += `</ul>`;
+
+            // Posgrado (solo si completó la universidad)
+            let opcionesPosgrado = '';
+            if (personaje.puedeAccederPosgrado()) {
+                opcionesPosgrado = `
+                    <h3>Posgrado</h3>
+                    <div class='opciones-educacion'>
+                        ${personaje.carrera.educacion.posgrado ? `
+                            <p><strong>Posgrado actual:</strong> ${personaje.carrera.educacion.posgrado}</p>
+                            <p><strong>Estado:</strong> Completado</p>
+                        ` : `
+                            <label>Tipo de posgrado:</label>
+                            <select id='tipo-posgrado'>
+                                <option value=''>Selecciona un posgrado...</option>
+                                <option value='MAESTRIA'>Maestría (2 años) - $25,000</option>
+                                <option value='DOCTORADO'>Doctorado (4 años) - $25,000</option>
+                                <option value='ESPECIALIZACION'>Especialización (1 año) - $25,000</option>
+                            </select>
+                            <button class='boton-menu' id='btn-hacer-posgrado'>Realizar posgrado</button>
+                        `}
+                    </div>
+                `;
+            }
+
+            opcionesEducacion = opcionesUniversidad + opcionesPosgrado;
         }
+
         contenidoEstudios.innerHTML = `
-            <h2>Estudios</h2>
-            <p><strong>Nivel:</strong> ${educacion.nivel || 'Ninguno'}</p>
+            <h2>Educación</h2>
+            <p><strong>Nivel actual:</strong> ${educacion.nivel || 'Ninguno'}</p>
+            <p><strong>Tipo:</strong> ${educacion.tipo || 'No definido'}</p>
+            <p><strong>Inclinación:</strong> ${educacion.inclinacion || 'No definida'}</p>
+            <p><strong>Rendimiento:</strong> ${educacion.rendimiento || 0}/100</p>
             <p><strong>Carrera:</strong> ${educacion.carrera || 'Ninguna'}</p>
-            <p><strong>Años completados:</strong> ${educacion.añosCompletados || 0}</p>
-            <button class='boton-menu' id='btn-estudiar'>Estudiar</button>
-            ${opcionesCarrera}
-            ${opcionesPosgrado}
+            <p><strong>Posgrado:</strong> ${educacion.posgrado || 'Ninguno'}</p>
+            <p><strong>Cursos realizados:</strong> ${educacion.cursos ? educacion.cursos.length : 0}</p>
+            ${opcionesEducacion}
+            <div id='estudios-feedback'></div>
             <hr>
             <h2>Trabajo</h2>
             <p><strong>Estado:</strong> ${trabajo.estado || 'Desempleado'}</p>
@@ -706,66 +784,181 @@ document.addEventListener('DOMContentLoaded', () => {
             <p><strong>Empresa:</strong> ${trabajo.empresa || '-'}</p>
             <p><strong>Salario:</strong> ${trabajo.salario || 0}</p>
             <p><strong>Años de experiencia:</strong> ${trabajo.añosExperiencia || 0}</p>
-            <button class='boton-menu' id='btn-buscar-trabajo' ${!puedeTrabajar ? 'disabled' : ''}>Buscar trabajo</button>
+            <button class='boton-menu' id='btn-buscar-trabajo' ${personaje.edad < 18 ? 'disabled' : ''}>Buscar trabajo</button>
             <button class='boton-menu peligro' id='btn-renunciar' ${trabajo.estado !== 'activo' ? 'disabled' : ''}>Renunciar</button>
-            <div id='estudios-feedback'></div>
-            ${mensajeRestriccion}
-            ${trabajosDisponibles}
         `;
-        // Estudiar
-        const btnEstudiar = contenidoEstudios.querySelector('#btn-estudiar');
-        if (btnEstudiar) {
-            btnEstudiar.onclick = () => {
-                personaje.modificarAtributo('inteligencia', 5);
-                personaje.agregarEvento({
-                    titulo: 'Estudio',
-                    descripcion: 'Has estudiado y mejorado tu inteligencia.',
-                    tipo: 'estudio',
-                    edad: personaje.edad
-                });
-                document.getElementById('estudios-feedback').innerHTML = `<span style='color:var(--color-primary)'>Has estudiado y mejorado tu inteligencia.</span>`;
-                window.juego.ui.actualizarPersonaje(personaje);
-            };
-        }
-        // Elegir carrera
-        const btnElegirCarrera = contenidoEstudios.querySelector('#btn-elegir-carrera');
-        if (btnElegirCarrera) {
-            btnElegirCarrera.onclick = () => {
-                const select = contenidoEstudios.querySelector('#select-carrera');
-                const carrera = select.value;
-                if (!carrera) {
-                    document.getElementById('estudios-feedback').innerHTML = `<span style='color:var(--color-error)'>Selecciona una carrera.</span>`;
-                    return;
+
+        // Event listeners para educación
+        if (personaje.edad >= 6 && personaje.edad < 12) {
+            const btnEstudiarPrimaria = document.getElementById('btn-estudiar-primaria');
+            if (btnEstudiarPrimaria) {
+                btnEstudiarPrimaria.onclick = () => {
+                    const tipo = document.getElementById('tipo-escuela-primaria').value;
+                    const inclinacion = document.getElementById('inclinacion-primaria').value;
+                    const costo = personaje.calcularCostoEducacion();
+                    
+                    if (tipo === 'privada' && personaje.finanzas.dinero < costo) {
+                        document.getElementById('estudios-feedback').innerHTML = 
+                            `<span style='color:var(--color-error)'>No tienes suficiente dinero para la escuela privada.</span>`;
+                        return;
+                    }
+
+                    personaje.modificarEducacion('tipo', tipo);
+                    personaje.modificarEducacion('inclinacion', inclinacion);
+                    personaje.modificarEducacion('rendimiento', 5);
+                    personaje.modificarAtributo('inteligencia', 3);
+                    
+                    if (tipo === 'privada') {
+                        personaje.finanzas.modificarDinero(-costo);
+                    }
+
+                    document.getElementById('estudios-feedback').innerHTML = 
+                        `<span style='color:var(--color-exito)'>Has estudiado y mejorado tu rendimiento.</span>`;
+                    window.juego.ui.actualizarPersonaje(personaje);
+                };
+            }
+        } else if (personaje.edad >= 12 && personaje.edad < 18) {
+            const btnEstudiarSecundaria = document.getElementById('btn-estudiar-secundaria');
+            if (btnEstudiarSecundaria) {
+                btnEstudiarSecundaria.onclick = () => {
+                    const tipo = document.getElementById('tipo-escuela-secundaria').value;
+                    const inclinacion = document.getElementById('inclinacion-secundaria').value;
+                    const costo = personaje.calcularCostoEducacion();
+                    
+                    if (tipo === 'privada' && personaje.finanzas.dinero < costo) {
+                        document.getElementById('estudios-feedback').innerHTML = 
+                            `<span style='color:var(--color-error)'>No tienes suficiente dinero para la escuela privada.</span>`;
+                        return;
+                    }
+
+                    personaje.modificarEducacion('tipo', tipo);
+                    personaje.modificarEducacion('inclinacion', inclinacion);
+                    personaje.modificarEducacion('rendimiento', 4);
+                    personaje.modificarAtributo('inteligencia', 4);
+                    
+                    if (tipo === 'privada') {
+                        personaje.finanzas.modificarDinero(-costo);
+                    }
+
+                    document.getElementById('estudios-feedback').innerHTML = 
+                        `<span style='color:var(--color-exito)'>Has estudiado y mejorado tu rendimiento.</span>`;
+                    window.juego.ui.actualizarPersonaje(personaje);
+                };
+            }
+        } else if (personaje.edad >= 18) {
+            if (personaje.puedeAccederUniversidad()) {
+                const btnEstudiarUniversidad = document.getElementById('btn-estudiar-universidad');
+                const btnContinuarUniversidad = document.getElementById('btn-continuar-universidad');
+                
+                if (btnEstudiarUniversidad) {
+                    btnEstudiarUniversidad.onclick = () => {
+                        const carrera = document.getElementById('carrera-universidad').value;
+                        if (!carrera) {
+                            document.getElementById('estudios-feedback').innerHTML = 
+                                `<span style='color:var(--color-error)'>Selecciona una carrera.</span>`;
+                            return;
+                        }
+
+                        const costo = personaje.calcularCostoEducacion();
+                        if (personaje.finanzas.dinero < costo) {
+                            document.getElementById('estudios-feedback').innerHTML = 
+                                `<span style='color:var(--color-error)'>No tienes suficiente dinero para la universidad.</span>`;
+                            return;
+                        }
+
+                        educacion.carrera = carrera;
+                        educacion.nivel = 'Universidad';
+                        educacion.añosUniversidad = 0;
+                        educacion.universidadCompletada = false;
+                        personaje.modificarAtributo('inteligencia', 5);
+                        personaje.finanzas.modificarDinero(-costo);
+
+                        document.getElementById('estudios-feedback').innerHTML = 
+                            `<span style='color:var(--color-exito)'>¡Has comenzado la carrera de ${carrera}!</span>`;
+                        window.juego.ui.actualizarPersonaje(personaje);
+                    };
                 }
-                educacion.carrera = carrera;
-                educacion.nivel = 'Universidad';
-                educacion.añosCompletados = 0;
-                document.getElementById('estudios-feedback').innerHTML = `<span style='color:var(--color-primary)'>¡Has comenzado la carrera de ${carrera}!</span>`;
-                window.juego.ui.actualizarPersonaje(personaje);
-                mostrarEstudiosTrabajo(juego);
-            };
-        }
-        // Hacer posgrado/curso
-        const btnHacerPosgrado = contenidoEstudios.querySelector('#btn-hacer-posgrado');
-        if (btnHacerPosgrado) {
-            btnHacerPosgrado.onclick = () => {
-                const select = contenidoEstudios.querySelector('#select-posgrado');
-                const tipo = select.value;
-                if (!tipo) {
-                    document.getElementById('estudios-feedback').innerHTML = `<span style='color:var(--color-error)'>Selecciona un posgrado o curso.</span>`;
-                    return;
+
+                if (btnContinuarUniversidad) {
+                    btnContinuarUniversidad.onclick = () => {
+                        const costo = personaje.calcularCostoEducacion();
+                        if (personaje.finanzas.dinero < costo) {
+                            document.getElementById('estudios-feedback').innerHTML = 
+                                `<span style='color:var(--color-error)'>No tienes suficiente dinero para continuar la universidad.</span>`;
+                            return;
+                        }
+
+                        personaje.modificarEducacion('añosUniversidad', personaje.carrera.educacion.añosUniversidad + 1);
+                        personaje.modificarAtributo('inteligencia', 3);
+                        personaje.finanzas.modificarDinero(-costo);
+
+                        document.getElementById('estudios-feedback').innerHTML = 
+                            `<span style='color:var(--color-exito)'>Has avanzado un año en tu carrera.</span>`;
+                        window.juego.ui.actualizarPersonaje(personaje);
+                    };
                 }
-                educacion.posgrado = tipo;
-                document.getElementById('estudios-feedback').innerHTML = `<span style='color:var(--color-primary)'>¡Has realizado un ${tipo}!</span>`;
-                window.juego.ui.actualizarPersonaje(personaje);
-                mostrarEstudiosTrabajo(juego);
-            };
+            } else {
+                const btnHacerCurso = document.getElementById('btn-hacer-curso');
+                if (btnHacerCurso) {
+                    btnHacerCurso.onclick = () => {
+                        const curso = document.getElementById('curso-capacitacion').value;
+                        if (!curso) {
+                            document.getElementById('estudios-feedback').innerHTML = 
+                                `<span style='color:var(--color-error)'>Selecciona un curso.</span>`;
+                            return;
+                        }
+
+                        const costo = 2000; // Costo fijo para cursos
+                        if (personaje.finanzas.dinero < costo) {
+                            document.getElementById('estudios-feedback').innerHTML = 
+                                `<span style='color:var(--color-error)'>No tienes suficiente dinero para el curso.</span>`;
+                            return;
+                        }
+
+                        personaje.agregarCurso(curso);
+                        personaje.modificarAtributo('inteligencia', 2);
+                        personaje.finanzas.modificarDinero(-costo);
+
+                        document.getElementById('estudios-feedback').innerHTML = 
+                            `<span style='color:var(--color-exito)'>¡Has completado el curso de ${curso}!</span>`;
+                        window.juego.ui.actualizarPersonaje(personaje);
+                    };
+                }
+            }
+
+            const btnHacerPosgrado = document.getElementById('btn-hacer-posgrado');
+            if (btnHacerPosgrado) {
+                btnHacerPosgrado.onclick = () => {
+                    const posgrado = document.getElementById('tipo-posgrado').value;
+                    if (!posgrado) {
+                        document.getElementById('estudios-feedback').innerHTML = 
+                            `<span style='color:var(--color-error)'>Selecciona un tipo de posgrado.</span>`;
+                        return;
+                    }
+
+                    const costo = personaje.calcularCostoEducacion();
+                    if (personaje.finanzas.dinero < costo) {
+                        document.getElementById('estudios-feedback').innerHTML = 
+                            `<span style='color:var(--color-error)'>No tienes suficiente dinero para el posgrado.</span>`;
+                        return;
+                    }
+
+                    educacion.posgrado = posgrado;
+                    personaje.modificarAtributo('inteligencia', 8);
+                    personaje.finanzas.modificarDinero(-costo);
+
+                    document.getElementById('estudios-feedback').innerHTML = 
+                        `<span style='color:var(--color-exito)'>¡Has comenzado tu ${posgrado}!</span>`;
+                    window.juego.ui.actualizarPersonaje(personaje);
+                };
+            }
         }
+
         // Buscar trabajo
-        const btnBuscar = contenidoEstudios.querySelector('#btn-buscar-trabajo');
+        const btnBuscar = document.getElementById('btn-buscar-trabajo');
         if (btnBuscar) {
             btnBuscar.onclick = () => {
-                if (!puedeTrabajar) {
+                if (personaje.edad < 18) {
                     document.getElementById('estudios-feedback').innerHTML = `<span style='color:var(--color-error)'>¡Debes tener al menos 18 años para trabajar!</span>`;
                     return;
                 }
@@ -851,7 +1044,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
         // Renunciar
-        const btnRenunciar = contenidoEstudios.querySelector('#btn-renunciar');
+        const btnRenunciar = document.getElementById('btn-renunciar');
         if (btnRenunciar) {
             btnRenunciar.onclick = () => {
                 trabajo.estado = 'desempleado';
@@ -917,4 +1110,105 @@ document.addEventListener('DOMContentLoaded', () => {
 function cerrarModal(id) {
     const modal = document.getElementById(id);
     if (modal) modal.style.display = 'none';
-} 
+}
+
+function actualizarPanelEventosPrincipal(personaje) {
+    const contenedor = document.getElementById('panel-eventos-principal');
+    if (!contenedor || !personaje) return;
+    const eventosPorAño = {};
+    personaje.historial.forEach(evento => {
+        const año = evento.edad;
+        if (!eventosPorAño[año]) eventosPorAño[año] = [];
+        eventosPorAño[año].push(evento);
+    });
+    contenedor.innerHTML = `
+        <div class=\"evento-container\"> 
+            ${Object.keys(eventosPorAño).sort((a, b) => a - b).map(año => `
+                <div class=\"año-eventos\" style=\"margin-bottom: 10px; border: none; box-shadow: none; padding: 0;\">
+                    <h4 style=\"margin: 0 0 5px 0; color: var(--color-primary); font-size: 1em; font-weight: 600;\">Año ${año}</h4>
+                    <ul style=\"list-style: none; padding: 0; margin: 0;\">
+                        ${eventosPorAño[año].map(evento => `
+                            <li class=\"evento\" style=\"margin: 5px 0; padding: 5px 0; border: none; box-shadow: none;\">
+                                <strong style=\"display: block; font-size: 0.95em;\">${evento.titulo}</strong>
+                                <span style=\"font-size: 0.88em; color: var(--color-text-light);\">${evento.descripcion}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    // Hacer scroll al final para mostrar el año más reciente
+    contenedor.scrollTop = contenedor.scrollHeight;
+}
+
+window.actualizarPanelEventosPrincipal = actualizarPanelEventosPrincipal;
+
+function traducirAtributo(atrib) {
+    const mapa = {
+        felicidad: 'Felicidad',
+        salud: 'Salud',
+        inteligencia: 'Inteligencia',
+        aspecto: 'Aspecto',
+        dinero: 'Dinero'
+    };
+    return mapa[atrib] || atrib.charAt(0).toUpperCase() + atrib.slice(1);
+}
+
+function mostrarModalDecision(evento, callback) {
+    console.log('Evento de decisión:', evento); // DEPURACIÓN
+    const modal = document.getElementById('modal-decision');
+    const contenido = document.getElementById('contenido-decision');
+    if (!modal || !contenido) return;
+    contenido.innerHTML = `
+        <h2>${evento.titulo}</h2>
+        <p style=\"margin-bottom:1.5em;\">${evento.descripcion}</p>
+        <div id=\"opciones-decision\"></div>
+    `;
+    const opcionesDiv = contenido.querySelector('#opciones-decision');
+    evento.opciones.forEach((op, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'boton-menu';
+        btn.textContent = op.texto;
+        btn.style.margin = '0.5em 1em';
+        btn.onclick = () => {
+            // Aplicar consecuencias definidas
+            let cambios = [];
+            if (op.consecuencias) {
+                for (const [atrib, valor] of Object.entries(op.consecuencias)) {
+                    if (window.juego && window.juego.personaje) {
+                        window.juego.personaje.modificarAtributo(atrib, valor);
+                        cambios.push(`${traducirAtributo(atrib)} ${valor > 0 ? '+' : ''}${valor}`);
+                    }
+                }
+            }
+            // Mostrar resumen de consecuencias y texto resumen
+            contenido.innerHTML = `
+                <h2>${evento.titulo}</h2>
+                <p style=\"margin-bottom:1em;\"><strong>Consecuencias:</strong><br>${cambios.length ? cambios.join('<br>') : 'Sin cambios directos.'}</p>
+                <p style=\"margin-bottom:1.5em;\">${op.resumen || ''}</p>
+                <button class='boton-menu' id='btn-continuar-decision'>Continuar</button>
+            `;
+            document.getElementById('btn-continuar-decision').onclick = () => {
+                // Registrar en historial
+                window.juego.personaje.agregarEvento({
+                    titulo: evento.titulo + ' - ' + op.texto,
+                    descripcion: (op.resumen || '') + (cambios.length ? ' [' + cambios.join(', ') + ']' : ''),
+                    tipo: 'decision',
+                    edad: window.juego.personaje.edad
+                });
+                modal.style.display = 'none';
+                if (typeof callback === 'function') callback();
+                // Actualizar UI y panel de eventos
+                window.juego.ui.actualizarPersonaje(window.juego.personaje);
+                if (typeof window.actualizarPanelEventosPrincipal === 'function') {
+                    window.actualizarPanelEventosPrincipal(window.juego.personaje);
+                }
+            };
+        };
+        opcionesDiv.appendChild(btn);
+    });
+    modal.style.display = 'flex';
+}
+
+window.mostrarModalDecision = mostrarModalDecision; 

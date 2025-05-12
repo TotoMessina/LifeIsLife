@@ -23,6 +23,7 @@
   <div class="resumen-vida" id="resumen-vida">
     <!-- Aquí va la biografía, eventos importantes, familia, etc. -->
   </div>
+  <div id="panel-eventos-principal"></div>
   <button class="boton-edad" id="btn-edad">+ Edad</button>
   <div class="atributos" id="atributos-personaje">
     <!-- Barras de atributos -->
@@ -52,6 +53,10 @@
 <div class="modal" id="modal-actividades">
   <button class="cerrar-modal" data-close="modal-actividades">×</button>
   <div class="modal-contenido" id="contenido-actividades"></div>
+</div>
+
+<div id="modal-decision" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:9999;">
+  <div class="modal-contenido" id="contenido-decision" style="background:var(--color-bg-panel); color:var(--color-text); border-radius:12px; box-shadow:0 4px 32px #0008; padding:2rem; min-width:320px; max-width:90vw; text-align:center;"></div>
 </div>
 
   <div id="form-container">

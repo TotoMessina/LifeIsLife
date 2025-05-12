@@ -426,4 +426,48 @@ export const LISTA_EVENTOS = [
             trabajo: 'Activo'
         }
     }
-]; 
+];
+
+export const ARBOL_CARRERAS = {
+  MEDICINA: [
+    { puesto: "Residente", salario: 1200 },
+    { puesto: "Médico General", salario: 2500 },
+    { puesto: "Especialista", salario: 4000 },
+    { puesto: "Jefe de Servicio", salario: 6000 },
+    { puesto: "Director Médico", salario: 9000 }
+  ],
+  INGENIERIA: [
+    { puesto: "Asistente Técnico", salario: 1100 },
+    { puesto: "Ingeniero Junior", salario: 2200 },
+    { puesto: "Ingeniero Senior", salario: 3500 },
+    { puesto: "Jefe de Proyecto", salario: 5500 },
+    { puesto: "Director de Ingeniería", salario: 8000 }
+  ],
+  DERECHO: [
+    { puesto: "Pasante", salario: 1000 },
+    { puesto: "Abogado Junior", salario: 2000 },
+    { puesto: "Abogado Senior", salario: 3500 },
+    { puesto: "Socio", salario: 6000 },
+    { puesto: "Juez/Director Legal", salario: 8500 }
+  ],
+  ARTE: [
+    { puesto: "Asistente de Taller", salario: 900 },
+    { puesto: "Artista Junior", salario: 1800 },
+    { puesto: "Artista Senior", salario: 3000 },
+    { puesto: "Curador", salario: 4500 },
+    { puesto: "Director de Galería", salario: 7000 }
+  ],
+  EMPRESARIAL: [
+    { puesto: "Auxiliar Administrativo", salario: 1000 },
+    { puesto: "Analista", salario: 2000 },
+    { puesto: "Gerente", salario: 4000 },
+    { puesto: "Director", salario: 7000 },
+    { puesto: "CEO", salario: 12000 }
+  ]
+};
+
+export const GASTOS_FIJOS_ANUALES = {
+  comida: 2400,
+  vivienda: 3600,
+  servicios: 1200
+}; 

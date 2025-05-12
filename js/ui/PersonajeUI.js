@@ -39,8 +39,10 @@ export class PersonajeUI {
         // Agregar tooltips a los atributos
         this._agregarTooltips();
 
-        // Hacer scroll al final del historial (si existiera)
-        // (Ya no hay historial en el panel central, solo en modales)
+        // Actualizar el panel de eventos principal en la pantalla principal
+        if (typeof actualizarPanelEventosPrincipal === 'function') {
+            actualizarPanelEventosPrincipal(personaje);
+        }
     }
 
     mostrarEvento(evento) {

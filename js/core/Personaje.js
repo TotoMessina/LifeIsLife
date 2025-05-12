@@ -1,4 +1,4 @@
-import { ATRIBUTOS, EVENTOS, CONFIG, RELACIONES, EVENTOS_RELACION, ESTADOS_EMBARAZO, DURACION_EMBARAZO, REQUISITOS_RELACION } from '../data/constants.js';
+import { ATRIBUTOS, EVENTOS, CONFIG, RELACIONES, EVENTOS_RELACION, ESTADOS_EMBARAZO, DURACION_EMBARAZO, REQUISITOS_RELACION, ARBOL_CARRERAS, GASTOS_FIJOS_ANUALES } from '../data/constants.js';
 import { helpers } from '../utils/helpers.js';
 import { Carrera } from './Carrera.js';
 import { Finanzas } from './Finanzas.js';
@@ -17,6 +17,9 @@ export class Personaje {
             [ATRIBUTOS.ASPECTO]: CONFIG.ATRIBUTO_INICIAL
         };
         this.carrera = new Carrera();
+        this.carrera.educacion.rendimiento = 0;
+        this.carrera.educacion.añosUniversidad = 0;
+        this.carrera.educacion.universidadCompletada = false;
         this.finanzas = new Finanzas();
         this.relaciones = [];
         this.embarazo = {
@@ -26,6 +29,9 @@ export class Personaje {
         };
         this.historial = [];
         this.condiciones = new Map();
+        this.propiedades = [];
+        this.autos = [];
+        this.tieneRegistro = false;
         // Generar familia inicial
         this.familia = this._generarFamiliaInicial();
     }
@@ -88,7 +94,7 @@ export class Personaje {
                 persona: padre,
                 tipo: padre.genero === 'masculino' ? 'padre' : 'madre',
                 estado: 'activa',
-                hijos: [this],
+                hijos: [],
                 fechaInicio: null,
                 fechaFin: null,
                 nivelRelacion: 50
@@ -112,6 +118,7 @@ export class Personaje {
                     persona: hermano,
                     tipo: esGemelo ? 'hermano gemelo' : 'hermano',
                     estado: 'activa',
+                    hijos: [],
                     fechaInicio: null,
                     fechaFin: null,
                     nivelRelacion: 50
@@ -150,32 +157,116 @@ export class Personaje {
         // Actualizar condiciones temporales
         this._actualizarCondiciones();
 
-        // Avanzar en la educación si está estudiando
-        if (this.carrera.educacion.nivel) {
-            const nivelCompletado = this.carrera.avanzarEducacion();
-            if (nivelCompletado) {
-                this.agregarEvento({
-                    titulo: 'Graduación',
-                    descripcion: `Has completado ${nivelCompletado}`,
-                    tipo: 'logro',
-                    edad: this.edad
-                });
+        // --- PROMOCIÓN Y DESPIDO ---
+        // Si tiene carrera universitaria y trabajo activo
+        if (this.carrera.educacion.universidadCompletada && this.carrera.educacion.carrera) {
+            const rama = this.carrera.educacion.carrera.toUpperCase();
+            const arbol = ARBOL_CARRERAS[rama];
+            if (arbol) {
+                // Si no tiene trabajo, asignar primer puesto
+                if (!this.carrera.trabajo.puesto) {
+                    this.carrera.trabajo.puesto = arbol[0].puesto;
+                    this.carrera.trabajo.nivel = 0;
+                    this.carrera.trabajo.salario = arbol[0].salario;
+                    this.carrera.trabajo.estado = 'activo';
+                    this.carrera.trabajo.aniosEnPuesto = 0;
+                    this.agregarEvento({
+                        titulo: 'Nuevo empleo',
+                        descripcion: `Comenzaste como ${arbol[0].puesto} en ${rama}.`,
+                        tipo: 'trabajo',
+                        edad: this.edad
+                    });
+                } else if (this.carrera.trabajo.estado === 'activo') {
+                    // Ascenso cada 4 años si el rendimiento es bueno
+                    this.carrera.trabajo.aniosEnPuesto = (this.carrera.trabajo.aniosEnPuesto || 0) + 1;
+                    if (this.carrera.trabajo.aniosEnPuesto >= 4 && this.carrera.educacion.rendimiento >= 60 && this.carrera.trabajo.nivel < arbol.length - 1) {
+                        this.carrera.trabajo.nivel++;
+                        this.carrera.trabajo.puesto = arbol[this.carrera.trabajo.nivel].puesto;
+                        this.carrera.trabajo.salario = arbol[this.carrera.trabajo.nivel].salario;
+                        this.carrera.trabajo.aniosEnPuesto = 0;
+                        this.agregarEvento({
+                            titulo: 'Ascenso',
+                            descripcion: `Has sido ascendido a ${this.carrera.trabajo.puesto}.`,
+                            tipo: 'trabajo',
+                            edad: this.edad
+                        });
+                    }
+                    // Despido por bajo rendimiento (10% de probabilidad si rendimiento < 40)
+                    if (this.carrera.educacion.rendimiento < 40 && Math.random() < 0.1) {
+                        this.carrera.trabajo.estado = 'despedido';
+                        this.carrera.trabajo.puesto = null;
+                        this.carrera.trabajo.salario = 0;
+                        this.carrera.trabajo.nivel = null;
+                        this.carrera.trabajo.aniosEnPuesto = 0;
+                        this.agregarEvento({
+                            titulo: 'Despido',
+                            descripcion: 'Has sido despedido por bajo rendimiento.',
+                            tipo: 'trabajo',
+                            edad: this.edad
+                        });
+                    }
+                }
             }
         }
 
-        // Recibir salario y aplicar desgaste si está trabajando
-        if (this.carrera.trabajo.estado === 'activo') {
-            this.finanzas.modificarDinero(this.carrera.trabajo.salario);
-            this.carrera.trabajo.añosExperiencia++;
-            // Desgaste laboral afecta salud y felicidad
-            const desgaste = this.carrera.trabajo.desgaste || 0;
-            if (desgaste > 0) {
-                this.modificarAtributo(ATRIBUTOS.SALUD, -desgaste);
-                this.modificarAtributo(ATRIBUTOS.FELICIDAD, -Math.round(desgaste/3));
+        // --- COBRO DE SALARIO Y GASTOS ---
+        if (this.carrera.trabajo.estado === 'activo' && this.carrera.trabajo.salario) {
+            this.finanzas.modificarDinero(this.carrera.trabajo.salario * 12);
+            this.agregarEvento({
+                titulo: 'Salario anual',
+                descripcion: `Has cobrado $${this.carrera.trabajo.salario * 12} de salario anual como ${this.carrera.trabajo.puesto}.`,
+                tipo: 'finanzas',
+                edad: this.edad
+            });
+        }
+        // Gastos fijos SOLO si es independiente
+        let gastos = 0;
+        if (this.edad >= 18) {
+            gastos += GASTOS_FIJOS_ANUALES.comida + GASTOS_FIJOS_ANUALES.servicios;
+        }
+        // Gastos de vivienda SOLO si tiene propiedad
+        if (Array.isArray(this.propiedades) && this.propiedades.length > 0) {
+            gastos += GASTOS_FIJOS_ANUALES.vivienda;
+        }
+        // Impuestos: 10% del salario anual si tiene trabajo
+        if (this.carrera.trabajo.estado === 'activo' && this.carrera.trabajo.salario) {
+            const impuestos = Math.round(this.carrera.trabajo.salario * 12 * 0.1);
+            gastos += impuestos;
+            this.agregarEvento({
+                titulo: 'Pago de impuestos',
+                descripcion: `Pagaste $${impuestos} en impuestos anuales.`,
+                tipo: 'finanzas',
+                edad: this.edad
+            });
+        }
+        if (gastos > 0) {
+            this.finanzas.modificarDinero(-gastos);
+            this.agregarEvento({
+                titulo: 'Gastos anuales',
+                descripcion: `Pagaste $${gastos} en comida, servicios${(Array.isArray(this.propiedades) && this.propiedades.length > 0) ? ', vivienda' : ''}.`,
+                tipo: 'finanzas',
+                edad: this.edad
+            });
+        }
+
+        // Avanzar en la educación si está estudiando
+        if (this.carrera.educacion.nivel === 'Universidad' && !this.carrera.educacion.universidadCompletada) {
+            this.carrera.educacion.añosUniversidad++;
+            const duracionCarrera = this._obtenerDuracionCarrera(this.carrera.educacion.carrera);
+            
+            if (this.carrera.educacion.añosUniversidad >= duracionCarrera) {
+                this.carrera.educacion.universidadCompletada = true;
                 this.agregarEvento({
-                    titulo: 'Desgaste laboral',
-                    descripcion: `El trabajo te ha causado un desgaste de ${desgaste} en salud y ${Math.round(desgaste/3)} en felicidad este año.`,
-                    tipo: 'trabajo',
+                    titulo: 'Graduación Universitaria',
+                    descripcion: `¡Te has graduado de ${this.carrera.educacion.carrera}!`,
+                    tipo: 'logro',
+                    edad: this.edad
+                });
+            } else {
+                this.agregarEvento({
+                    titulo: 'Avance Universitario',
+                    descripcion: `Has completado el año ${this.carrera.educacion.añosUniversidad} de ${this.carrera.educacion.carrera}.`,
+                    tipo: 'educacion',
                     edad: this.edad
                 });
             }
@@ -190,17 +281,6 @@ export class Personaje {
                 tipo: 'gasto',
                 edad: this.edad
             });
-        }
-
-        // Verificar si se quedó sin dinero
-        if (this.finanzas.dinero < 0) {
-            this.agregarEvento({
-                titulo: 'Crisis Financiera',
-                descripcion: 'Te has quedado sin dinero',
-                tipo: 'crisis',
-                edad: this.edad
-            });
-            this.modificarAtributo(ATRIBUTOS.FELICIDAD, -10);
         }
 
         // Actualizar embarazo
@@ -327,35 +407,35 @@ export class Personaje {
     }
 
     morir() {
-        this.estado = 'muerto';
-        this.agregarEvento({
-            titulo: 'Fallecimiento',
-            descripcion: 'Has fallecido.',
-            tipo: 'muerte',
-            edad: this.edad
-        });
+        // Notificar a familiares y pareja
+        const relacionesActivas = this.relaciones.filter(r => 
+            r.tipo === 'PAREJA' || 
+            (r.tipo === 'FAMILIAR' && r.nivelRelacion >= 70)
+        );
 
-        // Calcular estadísticas finales
-        const estadisticas = {
-            edad: this.edad,
-            patrimonio: this.finanzas.dinero,
-            propiedades: this.finanzas.propiedades.length,
-            hijos: this.relaciones.reduce((total, r) => total + r.hijos.length, 0),
-            logros: this.historial.filter(e => e.tipo === 'logro').length,
-            educacion: this.carrera.educacion.nivel || 'Sin estudios',
-            trabajo: this.carrera.trabajo.estado === 'activo' ? this.carrera.trabajo.rol : 'Desempleado',
-            relaciones: this.relaciones.filter(r => r.esActiva()).length,
-            eventos: this.historial.length
+        // Crear evento de muerte
+        const evento = {
+            titulo: 'Fallecimiento',
+            descripcion: `${this.nombre} ha fallecido a la edad de ${this.edad} años.`,
+            tipo: 'MUERTE',
+            fecha: new Date(),
+            impacto: {
+                felicidad: -50,
+                salud: 0
+            }
         };
 
-        this.agregarEvento({
-            titulo: 'Estadísticas Finales',
-            descripcion: `Edad: ${estadisticas.edad}\nPatrimonio: ${estadisticas.patrimonio}\nPropiedades: ${estadisticas.propiedades}\nHijos: ${estadisticas.hijos}\nLogros: ${estadisticas.logros}`,
-            tipo: 'estadisticas',
-            edad: this.edad
+        // Aplicar impacto a familiares cercanos
+        relacionesActivas.forEach(relacion => {
+            if (relacion.persona) {
+                relacion.persona.modificarAtributo('felicidad', -30);
+                relacion.persona.agregarEvento(evento);
+            }
         });
 
-        return estadisticas;
+        // Marcar como fallecido
+        this.estado = 'FALLECIDO';
+        this.fechaFallecimiento = new Date();
     }
 
     // Métodos para relaciones
@@ -539,5 +619,121 @@ export class Personaje {
         if (rel) {
             rel.nivelRelacion = Math.max(0, Math.min(100, (rel.nivelRelacion || 50) + delta));
         }
+    }
+
+    modificarEducacion(tipo, valor) {
+        if (tipo === 'rendimiento') {
+            this.carrera.educacion.rendimiento = Math.max(0, Math.min(100, this.carrera.educacion.rendimiento + valor));
+        } else if (tipo === 'inclinacion') {
+            this.carrera.educacion.inclinacion = valor;
+        } else if (tipo === 'tipo') {
+            this.carrera.educacion.tipo = valor;
+        } else if (tipo === 'añosUniversidad') {
+            this.carrera.educacion.añosUniversidad = valor;
+            // Verificar si se completó la universidad
+            const duracionCarrera = this._obtenerDuracionCarrera(this.carrera.educacion.carrera);
+            if (this.carrera.educacion.añosUniversidad >= duracionCarrera) {
+                this.carrera.educacion.universidadCompletada = true;
+                this.agregarEvento({
+                    titulo: 'Graduación Universitaria',
+                    descripcion: `¡Te has graduado de ${this.carrera.educacion.carrera}!`,
+                    tipo: 'logro',
+                    edad: this.edad
+                });
+            }
+        }
+    }
+
+    _obtenerDuracionCarrera(carrera) {
+        switch(carrera) {
+            case 'MEDICINA': return 6;
+            case 'DERECHO': return 5;
+            case 'INGENIERIA': return 5;
+            case 'ARTE': return 4;
+            case 'EMPRESARIAL': return 4;
+            default: return 4;
+        }
+    }
+
+    puedeAccederPosgrado() {
+        return this.carrera.educacion.universidadCompletada;
+    }
+
+    calcularCostoEducacion() {
+        if (this.carrera.educacion.tipo === 'privada') {
+            switch(this.carrera.educacion.nivel) {
+                case 'Escuela Primaria': return 5000;
+                case 'Escuela Secundaria': return 8000;
+                case 'Universidad': return 15000;
+                case 'Posgrado': return 25000; // Aumentado el costo del posgrado
+                default: return 0;
+            }
+        }
+        return 0; // Educación pública es gratuita
+    }
+
+    agregarCurso(curso) {
+        if (!this.carrera.educacion.cursos) {
+            this.carrera.educacion.cursos = [];
+        }
+        this.carrera.educacion.cursos.push(curso);
+        
+        // Aumentar rendimiento según el tipo de curso
+        let aumentoRendimiento = 0;
+        switch(curso) {
+            case 'PROGRAMACION':
+            case 'DISEÑO':
+                aumentoRendimiento = 15; // Cursos técnicos aumentan más el rendimiento
+                break;
+            case 'IDIOMAS':
+                aumentoRendimiento = 10;
+                break;
+            case 'OFICIOS':
+                aumentoRendimiento = 8;
+                break;
+            default:
+                aumentoRendimiento = 5;
+        }
+        
+        // Aumentar rendimiento y asegurar que no exceda 100
+        this.modificarEducacion('rendimiento', aumentoRendimiento);
+        
+        // Si el rendimiento supera 70, actualizar el nivel a Secundaria si no lo tiene
+        if (this.carrera.educacion.rendimiento >= 70 && !this.carrera.educacion.nivel) {
+            this.carrera.educacion.nivel = 'Escuela Secundaria';
+        }
+    }
+
+    puedeAccederUniversidad() {
+        // Puede acceder si tiene rendimiento suficiente o ha completado cursos relevantes
+        const tieneRendimientoSuficiente = this.carrera.educacion.rendimiento >= 70;
+        const tieneCursosRelevantes = this.carrera.educacion.cursos && 
+            this.carrera.educacion.cursos.some(curso => 
+                ['PROGRAMACION', 'DISEÑO', 'IDIOMAS'].includes(curso)
+            );
+        
+        return tieneRendimientoSuficiente || tieneCursosRelevantes;
+    }
+
+    obtenerCarrerasDisponibles() {
+        const carreras = {
+            'PROGRAMACION': ['INGENIERIA', 'EMPRESARIAL'],
+            'DISEÑO': ['ARTE', 'EMPRESARIAL'],
+            'IDIOMAS': ['DERECHO', 'EMPRESARIAL'],
+            'OFICIOS': ['INGENIERIA']
+        };
+
+        if (!this.carrera.educacion.cursos || this.carrera.educacion.cursos.length === 0) {
+            return ['EMPRESARIAL']; // Carrera por defecto si no hay cursos
+        }
+
+        const carrerasDisponibles = new Set();
+        this.carrera.educacion.cursos.forEach(curso => {
+            if (carreras[curso]) {
+                carreras[curso].forEach(carrera => carrerasDisponibles.add(carrera));
+            }
+        });
+
+        return Array.from(carrerasDisponibles);
     }
 } 

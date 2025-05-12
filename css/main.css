@@ -1768,4 +1768,30 @@ label, .gasto-tipo, .evento-titulo, .estadisticas-titulo {
         padding: 0.7rem 0.7rem;
         font-size: 1rem;
     }
+}
+
+#panel-eventos-principal {
+    background: var(--color-bg-panel) !important;
+    color: var(--color-text) !important;
+    border-radius: var(--radius);
+    box-shadow: var(--color-shadow);
+    border: 1.5px solid var(--color-border);
+    max-height: 320px;
+    min-height: 120px;
+    overflow-y: auto;
+    margin-bottom: 1.2rem;
+    padding: 1.2rem 1rem;
+}
+#panel-eventos-principal::-webkit-scrollbar {
+    width: 8px;
+    background: #23272a;
+    border-radius: 8px;
+}
+#panel-eventos-principal::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #00eaff 0%, #7f5cff 100%);
+    border-radius: 8px;
+}
+#panel-eventos-principal {
+    scrollbar-width: thin;
+    scrollbar-color: #00eaff #23272a;
 } 

@@ -20,6 +20,9 @@ export class Juego {
                 this.personaje.finanzas = new Finanzas();
             }
             this.actualizarUI();
+            if (typeof actualizarPanelEventosPrincipal === 'function') {
+                actualizarPanelEventosPrincipal(this.personaje);
+            }
         } catch (error) {
             console.error('Error al crear personaje:', error);
             throw error;
@@ -28,26 +31,51 @@ export class Juego {
 
     avanzarAnio() {
         if (!this.personaje) return;
-        
         try {
             // Envejecer al personaje
             this.personaje.envejecer();
-            
             // Generar y aplicar evento aleatorio
-            const evento = this.eventos.generarEventoAleatorio(this.personaje);
+            const evento = this._generarEventoAleatorio();
+            if (evento && evento.decision && Array.isArray(evento.opciones)) {
+                // Mostrar modal de decisión y pausar el flujo
+                if (typeof window.mostrarModalDecision === 'function') {
+                    window.mostrarModalDecision(evento, () => {
+                        // Continuar flujo normal después de la decisión
+                        this._postAvanceAnio();
+                    });
+                    return; // Pausar aquí hasta que el usuario decida
+                }
+            }
             if (evento) {
+                if (typeof evento.efecto === 'function') {
+                    evento.descripcion = evento.efecto();
+                }
                 this.aplicarEvento(evento);
+            } else {
+                // Registrar año aunque no haya evento aleatorio
+                this.personaje.agregarEvento({
+                    titulo: 'Año transcurrido',
+                    descripcion: 'No ocurrió ningún evento especial este año.',
+                    tipo: 'info',
+                    edad: this.personaje.edad
+                });
             }
-            
-            // Actualizar la interfaz
-            this.actualizarUI();
-            
-            // Verificar si el personaje ha muerto
-            if (this.personaje.estado === 'muerto') {
-                this.mostrarEstadisticasFinales();
-            }
+            this._postAvanceAnio();
         } catch (error) {
             console.error('Error al avanzar año:', error);
+        }
+    }
+
+    _postAvanceAnio() {
+        // Actualizar la interfaz
+        this.actualizarUI();
+        // Actualizar el panel de eventos principal
+        if (typeof window.actualizarPanelEventosPrincipal === 'function') {
+            window.actualizarPanelEventosPrincipal(this.personaje);
+        }
+        // Verificar si el personaje ha muerto
+        if (this.personaje.estado === 'muerto') {
+            this.mostrarEstadisticasFinales();
         }
     }
 
@@ -110,6 +138,9 @@ export class Juego {
             this.actualizarPanelPropiedades();
             this.actualizarPanelFinanzas();
             this.actualizarPanelRelaciones();
+            if (typeof actualizarPanelEventosPrincipal === 'function') {
+                actualizarPanelEventosPrincipal(this.personaje);
+            }
         } catch (error) {
             console.error('Error al actualizar UI:', error);
         }
@@ -237,6 +268,168 @@ export class Juego {
             this.ui.mostrarEstadisticasMuerte(this.personaje);
         } catch (error) {
             console.error('Error al mostrar estadísticas finales:', error);
+        }
+    }
+
+    _generarEventoAleatorio() {
+        // Reducir la probabilidad de eventos aleatorios a 30%
+        if (Math.random() > 0.3) return null;
+
+        const edad = this.personaje.edad;
+        // INFANCIA (0-12)
+        if (edad <= 12) {
+            const eventosInfancia = [
+                {
+                    titulo: 'Día de juegos',
+                    descripcion: 'Te invitan a jugar con amigos en la plaza.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('felicidad', 8);
+                        return 'Te divertiste mucho y tu felicidad aumentó.';
+                    }
+                },
+                {
+                    titulo: 'Resfriado',
+                    descripcion: 'Te resfriaste y faltaste a la escuela.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('salud', -5);
+                        return 'Tu salud disminuyó un poco.';
+                    }
+                },
+                {
+                    titulo: 'Nuevo amigo',
+                    descripcion: 'Conociste a un nuevo amigo en la escuela.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('felicidad', 5);
+                        return 'Tu felicidad aumentó por la nueva amistad.';
+                    }
+                },
+                {
+                    titulo: 'Decisión: Estudiar o Jugar',
+                    descripcion: '¿Prefieres estudiar para el examen o salir a jugar?',
+                    decision: true,
+                    opciones: [
+                        {
+                            texto: 'Estudiar',
+                            efecto: () => {
+                                this.personaje.modificarAtributo('inteligencia', 6);
+                                this.personaje.modificarAtributo('felicidad', -2);
+                                return 'Mejoraste tu inteligencia pero te divertiste menos.';
+                            }
+                        },
+                        {
+                            texto: 'Jugar',
+                            efecto: () => {
+                                this.personaje.modificarAtributo('felicidad', 6);
+                                return 'Te divertiste mucho pero no estudiaste.';
+                            }
+                        }
+                    ]
+                }
+            ];
+            return eventosInfancia[Math.floor(Math.random() * eventosInfancia.length)];
+        }
+        // ADOLESCENCIA (13-17)
+        if (edad <= 17) {
+            const eventosAdolescencia = [
+                {
+                    titulo: 'Examen importante',
+                    descripcion: 'Tienes un examen clave en la escuela.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('inteligencia', 4);
+                        return 'Tu inteligencia aumentó por el esfuerzo.';
+                    }
+                },
+                {
+                    titulo: 'Discusión con amigo',
+                    descripcion: 'Tuviste una discusión con un amigo cercano.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('felicidad', -5);
+                        return 'Tu felicidad disminuyó por la pelea.';
+                    }
+                },
+                {
+                    titulo: 'Decisión: Deporte o Estudio',
+                    descripcion: '¿Prefieres entrenar para el equipo o estudiar para el examen?',
+                    decision: true,
+                    opciones: [
+                        {
+                            texto: 'Entrenar',
+                            efecto: () => {
+                                this.personaje.modificarAtributo('salud', 5);
+                                this.personaje.modificarAtributo('felicidad', 2);
+                                return 'Mejoraste tu salud y te sentiste bien.';
+                            }
+                        },
+                        {
+                            texto: 'Estudiar',
+                            efecto: () => {
+                                this.personaje.modificarAtributo('inteligencia', 7);
+                                this.personaje.modificarAtributo('felicidad', -2);
+                                return 'Mejoraste tu inteligencia pero te divertiste menos.';
+                            }
+                        }
+                    ]
+                }
+            ];
+            return eventosAdolescencia[Math.floor(Math.random() * eventosAdolescencia.length)];
+        }
+        // ADULTEZ (18+)
+        // (Mantener eventos previos, más algunos de decisión)
+        const esPositivo = Math.random() < 0.6;
+        if (esPositivo) {
+            const eventosPositivos = [
+                {
+                    titulo: 'Día Productivo',
+                    descripcion: 'Has tenido un día muy productivo.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('felicidad', 5);
+                        return 'Tu felicidad ha aumentado.';
+                    }
+                },
+                {
+                    titulo: 'Decisión: Mudarse o Quedarse',
+                    descripcion: 'Te ofrecen mudarte a otra ciudad por trabajo. ¿Qué decides?',
+                    decision: true,
+                    opciones: [
+                        {
+                            texto: 'Mudarse',
+                            efecto: () => {
+                                this.personaje.modificarAtributo('felicidad', -3);
+                                this.personaje.modificarAtributo('inteligencia', 2);
+                                return 'Te mudaste, ganaste experiencia pero extrañas tu ciudad.';
+                            }
+                        },
+                        {
+                            texto: 'Quedarse',
+                            efecto: () => {
+                                this.personaje.modificarAtributo('felicidad', 2);
+                                return 'Te quedaste y mantuviste tus amistades.';
+                            }
+                        }
+                    ]
+                }
+            ];
+            return eventosPositivos[Math.floor(Math.random() * eventosPositivos.length)];
+        } else {
+            const eventosNegativos = [
+                {
+                    titulo: 'Día Difícil',
+                    descripcion: 'Has tenido un día complicado.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('felicidad', -3);
+                        return 'Tu felicidad ha disminuido ligeramente.';
+                    }
+                },
+                {
+                    titulo: 'Enfermedad leve',
+                    descripcion: 'Te enfermaste y faltaste al trabajo.',
+                    efecto: () => {
+                        this.personaje.modificarAtributo('salud', -6);
+                        return 'Tu salud disminuyó.';
+                    }
+                }
+            ];
+            return eventosNegativos[Math.floor(Math.random() * eventosNegativos.length)];
         }
     }
 } 
